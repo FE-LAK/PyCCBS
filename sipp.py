@@ -15,6 +15,7 @@ class SIPP:
         self.visited = {}             # dict: tuple(id1,id2) -> list(double, bool)        
         self.agent = None
         self.map = map
+        self.verbose = False
 
     def clear(self):
         self.open.clear()
@@ -231,7 +232,7 @@ class SIPP:
         self.close.clear()        
         self.visited.clear()
 
-        print(f"** SIPP: {starts}->{goals} @ max_f={max_f}")
+        #print(f"** SIPP: {starts}->{goals} @ max_f={max_f}")
 
         # Construct a path for each goal
         paths = [Path() for _ in range(len(goals))]
@@ -271,7 +272,8 @@ class SIPP:
                         path_found += 1
                     if path_found == len(goals):
                         # Finish the search
-                        print("** SIPP found solution")
+                        if self.verbose:
+                            print("** SIPP found solution")
                         return paths
                                 
             # Find successors
@@ -283,7 +285,8 @@ class SIPP:
                 new_node.parent = parent
                 self.add_open(new_node)
 
-        print("** Error: SIPP found no solution")
+        if self.verbose:
+            print("** Error: SIPP found no solution")
         return paths
     
     # Get the enpoints
@@ -359,14 +362,15 @@ class SIPP:
         parts = []
         results = []
         new_results = []
-        expanded = 0
+        expanded = 0        
 
         # No existing set of landmarks (positive constraints) -> plain SIPP from start to goal
         if not self.landmarks:            
             starts = [self.get_endpoints(agent.start_id, 0, self.CN_INFINITY)[0]]
             goals = [self.get_endpoints(agent.goal_id, 0, self.CN_INFINITY)[-1]]
-
-            print(f"SIPP no landmarks: {starts} -> {goals}")
+            
+            if self.verbose:
+                print(f"SIPP for [{agent.id}]: {agent.start_id} -> {agent.goal_id}  | Constraints: {self.constraints}")
             
             parts = self.find_partial_path(starts, goals)            
             expanded = len(self.close)
@@ -377,7 +381,9 @@ class SIPP:
             result = parts[0]
 
         else:
-            print(f"SIPP using landmarks: {self.landmarks}")
+            if self.verbose:
+                print(f"SIPP for [{agent.id}]: {agent.start_id} -> {[f'{m.id1}-{m.id2}' for m in self.landmarks]} -> {agent.goal_id}   | Constraints: {self.constraints}")
+
             for i in range(len(self.landmarks) + 1):
                 if i == 0:
                     starts = [self.get_endpoints(agent.start_id, 0, self.CN_INFINITY)[0]]
@@ -391,11 +397,10 @@ class SIPP:
 
                 # Goal empty - no path possible
                 if not goals:
-                    print("No possible goal found")
+                    if self.verbose:
+                        print("No possible goal found")
                     return Path()
                 
-                # print(f"Starts, goals: {starts} -> {goals}")
-            
                 parts = self.find_partial_path(starts, goals, goals[-1].interval[1])
 
                 expanded += len(self.close)
@@ -420,7 +425,8 @@ class SIPP:
 
     	        # No results - no path...
                 if not results:
-                    print("No path result")
+                    if self.verbose:
+                        print("No path result")
                     return Path()                
 
                 # Finish in a landmark
@@ -432,7 +438,7 @@ class SIPP:
 
                     # No goals - no path
                     if not goals:
-                        print("No viable goal found")
+                        #print("No viable goal found")
                         return Path()
 
                     new_results = []
@@ -470,7 +476,8 @@ class SIPP:
                     results = new_results
                     
                     if not results:
-                        print("No resulting path found")
+                        if self.verbose:
+                            print("No resulting path found")
                         return Path()
 
             result = results[0]
@@ -479,9 +486,10 @@ class SIPP:
         result.agentID = agent.id
         result.expanded = expanded
 
-        print(f"Final result: {result}")
-        print(f"Total cost: {result.cost}")
-        print(f"Expanded nodes: {result.expanded}")
+        if self.verbose:
+            print(f"Final result: {result}")
+            print(f"Total cost: {result.cost}")
+            print(f"Expanded nodes: {result.expanded}")
 
         return result
     
@@ -492,6 +500,7 @@ if __name__ == "__main__":
     map = Map("map_ccbs_export.xml")
 
     planner = SIPP(map)
+    planner.verbose = True
 
     # Add constraints
     cs = []

@@ -1,5 +1,7 @@
 import networkx as nx
 from structs import *
+import matplotlib
+import matplotlib.pyplot as plt
 import math
 
 class Map:
@@ -31,3 +33,22 @@ class Map:
         
     def get_dist_id(self, id1, id2):
         return math.sqrt((self.nodes[id1].x - self.nodes[id2].x)**2 + (self.nodes[id1].y - self.nodes[id2].y)**2)
+    
+    def render(self, paths):
+        # Render the map and the paths
+
+        plt.clf()
+        for edge in self.graph.edges(data=True):
+            #print(edge)    
+            x1,y1 = map(float, self.graph.nodes[edge[0]]['coords'].split(','))
+            x2,y2 = map(float, self.graph.nodes[edge[1]]['coords'].split(','))    
+            plt.plot([x1, x2], [y1, y2], 'gray')
+
+        # Draw dumped data
+        for path in paths:
+            pts = [self.graph.nodes[f'n{n.id}']['coords'].split(',')  for n in path.nodes]
+            x = [float(pt[0]) for pt in pts]
+            y = [float(pt[1]) for pt in pts]
+            plt.plot(x,y, lw=3)
+
+        plt.show()
