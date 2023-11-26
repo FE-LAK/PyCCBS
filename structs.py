@@ -190,6 +190,7 @@ class Solution:
         self.low_level_expanded = low_level_expanded
         self.cardinal_solved = cardinal_solved
         self.semicardinal_solved = semicardinal_solved
+        self.task = None
         self.time = time if time is not None else datetime.timedelta()
         self.init_time = init_time if init_time is not None else datetime.timedelta()
         self.paths = paths if paths is not None else []
@@ -208,9 +209,23 @@ class Task:
     def get_agent(self, id) -> Agent:
         return [agent for agent in self.agents if agent.id == id][0]
     
+    def load_from_file(self, file):
+        from xml.etree import cElementTree as ElementTree
+
+        tree = ElementTree.parse(file)
+        root = tree.getroot()
+        
+        self.agents.clear()
+        agent_id = 0
+        for agent_task in root:
+            ag_attr = agent_task.attrib
+            self.agents.append(Agent(int(ag_attr['start_id']), int(ag_attr['goal_id']), agent_id))
+            agent_id += 1        
+
     def __repr__(self) -> str:
         return str(self.agents)
     
+
 
 class Vector2D:
     def __init__(self, _x=0.0, _y=0.0):

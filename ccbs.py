@@ -4,6 +4,7 @@ from map import Map
 from config import Config
 import math
 import time
+import xml.etree.ElementTree as ET
 
 class CCBS:
     CN_INFINITY = float('inf')
@@ -634,7 +635,49 @@ class CCBS:
         self.solution.cardinal_solved = cardinal_solved
         self.solution.semicardinal_solved = semicardinal_solved
 
+        self.solution.task = task
+
         return self.solution
+    
+
+    def write_to_log_path(self, file):
+        root = ET.Element('root')
+
+        # List all agents
+        for ag in self.solution.task.agents:
+            ags = ET.SubElement(root, 'agent')
+            ags.set('start_id', str(ag.start_id))
+            ags.set('goal_id', str(ag.goal_id))
+
+        log = ET.SubElement(root, 'log')
+        summary = ET.SubElement(log, 'summary')
+        summary.set('time', str(self.solution.time))
+        summary.set('flowtime', str(self.solution.flowtime))
+        summary.set('makespan', str(self.solution.makespan))
+
+        for i, path in enumerate(solution.paths):
+            agent = ET.SubElement(log, 'agent')
+            agent.set("number", str(i))
+
+            path_elem = ET.SubElement(agent, 'path')
+            path_elem.set('duration', str(path.cost))
+
+            for i in range(len(path.nodes) - 1):          
+                n1, n2 = path.nodes[i], path.nodes[i+1]   
+                part = ET.SubElement(path_elem, 'section')
+                part.set('number', str(i))
+                part.set('start_i', str(self.map.nodes[n1.id].x))
+                part.set('start_j', str(self.map.nodes[n1.id].y))
+                part.set('start_id', str(n1.id))                
+                part.set('goal_i', str(self.map.nodes[n2.id].x))
+                part.set('goal_j', str(self.map.nodes[n2.id].y))
+                part.set('goal_id', str(n2.id))
+                part.set('duration', str(n2.g - n1.g))
+
+        tree = ET.ElementTree(root)
+        ET.indent(tree, space="    ", level=0)
+        tree.write(file, short_empty_elements=False)
+
 
 # Test the CCBS
 if __name__ == "__main__":
@@ -646,41 +689,49 @@ if __name__ == "__main__":
 
     # Create task
     task = Task()
-    '''
-    task.agents.append(Agent(35, 85, 0))
-    task.agents.append(Agent(161, 113, 1))
-    task.agents.append(Agent(105, 19, 2))
-    task.agents.append(Agent(73, 69, 3))
-    task.agents.append(Agent(201, 179, 4))
-    task.agents.append(Agent(137, 161, 5))
-    task.agents.append(Agent(163, 67, 6))
-    task.agents.append(Agent(83, 63, 7))
-    task.agents.append(Agent(225, 123, 8))
-    task.agents.append(Agent(147, 199, 9))
-    '''    
 
-    taskSet = None
+
+    taskSet = 1
     if taskSet == None:
         import random
         # Generate random tasks
         # There should be no identical start and goal locations
+
+        # Specify the station nodes
+        stations = range(1, 217, 2)
         Ntasks = 20
+
         Na = 0
         while len(task.agents) < Ntasks:
             starts = [a.start_id for a in task.agents]
             goals = [a.goal_id for a in task.agents]
 
             # Generate new random task
-            sId = 2*int(random.random() * 108) + 1
-            gId = 2*int(random.random() * 108) + 1
+            sId = stations[int(random.random() * len(stations))]
+            gId = stations[int(random.random() * len(stations))]
 
             if sId in starts or gId in goals:
                 continue
             
             task.agents.append(Agent(sId, gId, Na))
-            Na += 1    
+            Na += 1
 
+    elif taskSet == 0:
+        task.load_from_file("task_ccbs_export.xml")        
+    
     elif taskSet == 1:
+        task.agents.append(Agent(35, 85, 0))
+        task.agents.append(Agent(161, 113, 1))
+        task.agents.append(Agent(105, 19, 2))
+        task.agents.append(Agent(73, 69, 3))
+        task.agents.append(Agent(201, 179, 4))
+        task.agents.append(Agent(137, 161, 5))
+        task.agents.append(Agent(163, 67, 6))
+        task.agents.append(Agent(83, 63, 7))
+        task.agents.append(Agent(225, 123, 8))
+        task.agents.append(Agent(147, 199, 9))
+
+    elif taskSet == 2:
         tasks = "0: 34->80, 1: 184->122, 2: 114->174, 3: 12->126, 4: 130->194, 5: 210->212, 6: 200->88, 7: 78->110, 8: 168->112, 9: 150->118"
         tasks = "0: 156->94, 1: 16->172, 2: 66->20, 3: 64->62, 4: 150->208, 5: 8->2, 6: 14->196, 7: 178->10, 8: 32->150, 9: 106->26"
         tasks = "0: 14->174, 1: 136->180, 2: 32->176, 3: 156->86, 4: 86->30, 5: 158->142, 6: 96->62, 7: 214->74, 8: 56->114, 9: 34->44, 10: 148->212, 11: 76->156, 12: 150->26, 13: 84->162, 14: 208->36, 15: 60->206, 16: 88->78, 17: 174->96, 18: 114->152, 19: 82->130"
@@ -692,9 +743,10 @@ if __name__ == "__main__":
             nodes = id_task[1].split("->")
             task.agents.append(Agent(int(nodes[0]), int(nodes[1]), int(id_task[0])))
 
-    print(task)    
+    print(task)   
 
     solution = ccbs.find_solution(task)
     print(solution)
 
-    map.render(solution.paths)
+    #map.render(solution.paths)
+    ccbs.write_to_log_path('test_out.xml')
