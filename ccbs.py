@@ -6,6 +6,7 @@ import math
 import time
 import xml.etree.ElementTree as ET
 
+
 class CCBS:
     CN_INFINITY = float('inf')
     CN_EPSILON = 1e-9
@@ -14,7 +15,7 @@ class CCBS:
         self.tree = CBS_Tree()
         self.planner = SIPP(map)
         self.solution = None
-        self.map = map
+        self.map = map        
 
         self.config = Config()
 
@@ -49,6 +50,7 @@ class CCBS:
                     conflict.overcost = min(pathA.cost - root.paths[conflict.agent1].cost,
                                             pathB.cost - root.paths[conflict.agent2].cost)
                     root.cardinal_conflicts.append(conflict)
+                    #print("init_root " + str(conflict.overcost))
                 elif pathA.cost > root.paths[conflict.agent1].cost or pathB.cost > root.paths[conflict.agent2].cost:
                     root.semicard_conflicts.append(conflict)
                 else:
@@ -134,7 +136,7 @@ class CCBS:
 
         # Check for No Conflict
         if radius**2 - dist**2 < 0:
-            print(f"No conflict at t={move1.t1} diff = {dist - radius}")
+            #print(f"No conflict at t={move1.t1} diff = {dist - radius}")
             return Constraint(agent, None, None, move1.id1, move1.id2)
 
         # Generate Wait Constraint
@@ -426,12 +428,15 @@ class CCBS:
                 elif new_pathA.cost < 0:
                     c.overcost = new_pathB.cost - old_cost
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict =a a< 0 " + str(c.overcost))
                 elif new_pathB.cost < 0:
                     c.overcost = new_pathA.cost - path.cost
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict =a b< 0 " + str(c.overcost))
                 elif new_pathA.cost > path.cost and new_pathB.cost > old_cost:
                     c.overcost = min(new_pathA.cost - path.cost, new_pathB.cost - old_cost)
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict =a =? " + str(c.overcost))
                 elif new_pathA.cost > path.cost or new_pathB.cost > old_cost:
                     semicard_conflictsA.append(c)
                 else:
@@ -457,12 +462,15 @@ class CCBS:
                 elif new_pathA.cost < 0:
                     c.overcost = new_pathB.cost - old_cost
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict !a a< 0 " + str(c.overcost))
                 elif new_pathB.cost < 0:
                     c.overcost = new_pathA.cost - path.cost
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict !a b< 0 " + str(c.overcost))
                 elif new_pathA.cost > path.cost and new_pathB.cost > old_cost:
                     c.overcost = min(new_pathA.cost - path.cost, new_pathB.cost - old_cost)
                     cardinal_conflictsA.append(c)
+                    #print("new_conflict !a =? " + str(c.overcost))
                 elif new_pathA.cost > path.cost or new_pathB.cost > old_cost:
                     semicard_conflictsA.append(c)
                 else:
@@ -479,6 +487,9 @@ class CCBS:
 
 
     def find_solution(self, task : Task) -> Solution:
+    
+        self.map.init_heuristic(task.agents)
+
         print("CCBS finding solution...")
         self.solution = Solution()
         start_time = time.time()
@@ -543,8 +554,11 @@ class CCBS:
             low_level_searches += 1
             low_level_expanded += pathB.expanded
 
-            print(f"Tree node {node.id}/{node.id_str}: Paths solved {len(paths)-len(node.conflicts)-len(node.cardinal_conflicts)-len(node.semicard_conflicts)}/{len(task.agents)}  Checking conflict between {conflict.agent1} and {conflict.agent2} - total constraints: {len(constraintsA)} / {len(constraintsB)}")
-            
+
+            confstr = f"{conflict.move1.id1}@{conflict.move1.t1} -> {conflict.move1.id2}@{conflict.move1.t2} and {conflict.move2.id1}@{conflict.move2.t1} -> {conflict.move2.id2}@{conflict.move2.t2}"
+            # Paths solved {len(paths)-len(node.conflicts)-len(node.cardinal_conflicts)-len(node.semicard_conflicts)}/{len(task.agents)} 
+            print(f"Tree node {node.id}/{node.id_str}: Conflict {conflict.agent1} and {conflict.agent2} - total constraints: {len(constraintsA)} / {len(constraintsB)}     - conflict: {confstr}")
+
             right = CBS_Node([pathA], parent, constraintA, node.cost + pathA.cost - self.get_cost(node, conflict.agent1), 0, node.total_cons + 1)
             left = CBS_Node([pathB], parent, constraintB, node.cost + pathB.cost - self.get_cost(node, conflict.agent2), 0, node.total_cons + 1)
 
@@ -615,7 +629,7 @@ class CCBS:
 
             time_spent = time.time() - start_time
 
-            if time_spent > self.config.timelimit:
+            if False and time_spent > self.config.timelimit:
                 print("Time limit reached, no solution found")
                 self.solution.found = False
                 break
@@ -683,7 +697,7 @@ class CCBS:
 if __name__ == "__main__":
     # Load the map
     print("Loading map...")
-    map = Map("map_ccbs_export.xml")
+    map = Map("map_ccbs_export.xml")    
 
     ccbs = CCBS(map)
 
@@ -691,7 +705,7 @@ if __name__ == "__main__":
     task = Task()
 
 
-    taskSet = 1
+    taskSet = 2
     if taskSet == None:
         import random
         # Generate random tasks

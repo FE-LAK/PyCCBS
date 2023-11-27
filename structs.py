@@ -122,6 +122,9 @@ class CBS_Node:
         newNode.id = self.id
         newNode.id_str = self.id_str
 
+        newNode.h = self.h
+        newNode.low_level_expanded = self.low_level_expanded        
+
         newNode.constraint = self.constraint
 
         self.conflicts.clear()
@@ -153,7 +156,7 @@ class CBS_Tree:
         self.tree.append(node)
         #ToDo: container optimization using heap/priority queue structures
         self.container.append(Open_Elem(node, node.id, node.cost, node.total_cons, node.conflicts_num))
-        self.container.sort(key=lambda x : x.cost)
+        self.container.sort(key=lambda x : (x.cost, x.conflicts_num, x.cons_num))
         self.open_size += 1
 
     def get_front(self) -> CBS_Node:

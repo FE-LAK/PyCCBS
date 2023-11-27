@@ -90,8 +90,8 @@ class SIPP:
                         self.visited[new_visited_int][0] = new_node.g
                 else:
                     self.visited[new_visited_int] = [new_node.g, False]
-
-                new_node.f = new_node.g + self.map.get_dist(new_node, goal)
+                                            
+                new_node.f = new_node.g + self.map.get_heuristic_dist(self.agent, new_node, goal)
                 succs.append(new_node)
         return succs
     
@@ -363,7 +363,7 @@ class SIPP:
         results = []
         new_results = []
         expanded = 0        
-
+        
         # No existing set of landmarks (positive constraints) -> plain SIPP from start to goal
         if not self.landmarks:            
             starts = [self.get_endpoints(agent.start_id, 0, self.CN_INFINITY)[0]]
