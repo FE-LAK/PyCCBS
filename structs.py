@@ -203,7 +203,9 @@ class Solution:
         self.found = False
 
     def __repr__(self) -> str:
-        return f"***************************\nSolution found: {self.found}\n\tRuntime: {self.time}\n\tMakespan: {self.makespan}\n\tFlowtime: {self.flowtime}\n\tInitial cost: {self.init_cost}\n\tCollision checking time: {self.check_time}\n\tHL expanded: {self.high_level_expanded}\n\tLL searches: {self.low_level_expansions}\n\tLL expanded(avg): {self.low_level_expanded}"    
+        return f"***************************\nSolution found: {self.found}\n\tRuntime: {self.time}\n\tMakespan: {self.makespan}\n\tFlowtime: {self.flowtime}\n\tInitial cost: {self.init_cost}\n" + \
+               f"\tCollision checking time: {self.check_time}\n\tHL expanded: {self.high_level_expanded}\n\tLL searches: {self.low_level_expansions}\n\tLL expanded(avg): {self.low_level_expanded}\n" + \
+               f"\tCardinal conflicts: {self.cardinal_solved}\n\tSemicardinal conflicts: {self.semicardinal_solved}"
 
 class Task:
     def __init__(self) -> None:

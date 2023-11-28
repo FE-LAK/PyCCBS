@@ -19,8 +19,11 @@ class CCBS:
 
         self.config = Config()
 
+        self.verbose = False
+
     def init_root(self, task : Task) -> bool:
-        print("Finding root solution...")
+        if self.verbose:
+            print("Finding root solution...")
         root = CBS_Node()        
         path = sPath()
 
@@ -487,18 +490,21 @@ class CCBS:
 
 
     def find_solution(self, task : Task) -> Solution:
-    
-        self.map.init_heuristic(task.agents)
+        if self.config.use_precalculated_heuristic:
+            # Initialize the heuristic based on reverse Dijkstra
+            self.map.init_heuristic(task.agents)
 
-        print("CCBS finding solution...")
+        if self.verbose:
+            print("CCBS find solution...")
         self.solution = Solution()
         start_time = time.time()
+        
         cardinal_solved = 0
         semicardinal_solved = 0
-
-        print("- initializing root solution")
+        
         if not self.init_root(task):
-            print("No root solution possible, cannot continue")
+            if self.verbose:
+                print("No root solution possible, cannot continue")
             return self.solution
 
         self.solution.init_time = time.time() - start_time
@@ -515,18 +521,22 @@ class CCBS:
         agent_id = 2
 
         while True:
-            parent = self.tree.get_front()
-            node = parent.create_node_move_conflicts()
-            node.cost -= node.h
+            parent = self.tree.get_front() # Get frontal node from the tree
+            node = parent.create_node_move_conflicts() # Create new node based on parent, move conflicts to new nove
+            node.cost -= node.h  # remove heuristics - ToDo: why?
 
+            # Combine all existing paths in the tree from node to parent
             paths = self.get_paths(node, len(task.agents))
 
             time_now = time.time()                        
 
             if not node.conflicts and not node.semicard_conflicts and not node.cardinal_conflicts:
-                print("No conflicts, solution found successfully")
+                # Done with search, no more conflicts
+                if self.verbose:
+                    print("No conflicts, solution found successfully")
                 break  # No conflicts => solution found
 
+            # Select the new conflict to be solved - prioritize cardinal over semicardinal over regular
             if node.cardinal_conflicts:
                 conflict = self.get_conflict(node.cardinal_conflicts)
                 cardinal_solved += 1
@@ -540,6 +550,7 @@ class CCBS:
             time_elapsed += time_spent
             expanded += 1
 
+            # Join existing constraints, add new constraint from the selected conflict, then plan path - all for agent 1
             constraintsA = self.get_constraints(node, conflict.agent1)
             constraintA = self.get_constraint(conflict.agent1, conflict.move1, conflict.move2)
             constraintsA.append(constraintA)
@@ -547,6 +558,7 @@ class CCBS:
             low_level_searches += 1
             low_level_expanded += pathA.expanded
 
+            # Do the same for the other agent
             constraintsB = self.get_constraints(node, conflict.agent2)
             constraintB = self.get_constraint(conflict.agent2, conflict.move2, conflict.move1)
             constraintsB.append(constraintB)
@@ -554,11 +566,12 @@ class CCBS:
             low_level_searches += 1
             low_level_expanded += pathB.expanded
 
+            # Print the stats/current step            
+            if self.verbose:
+                confstr = f"{conflict.move1.id1}@{conflict.move1.t1} -> {conflict.move1.id2}@{conflict.move1.t2} and {conflict.move2.id1}@{conflict.move2.t1} -> {conflict.move2.id2}@{conflict.move2.t2}"
+                print(f"Tree node {node.id}/{node.id_str}: Conflict {conflict.agent1} and {conflict.agent2} - total constraints: {len(constraintsA)} / {len(constraintsB)}     - conflict: {confstr}")
 
-            confstr = f"{conflict.move1.id1}@{conflict.move1.t1} -> {conflict.move1.id2}@{conflict.move1.t2} and {conflict.move2.id1}@{conflict.move2.t1} -> {conflict.move2.id2}@{conflict.move2.t2}"
-            # Paths solved {len(paths)-len(node.conflicts)-len(node.cardinal_conflicts)-len(node.semicard_conflicts)}/{len(task.agents)} 
-            print(f"Tree node {node.id}/{node.id_str}: Conflict {conflict.agent1} and {conflict.agent2} - total constraints: {len(constraintsA)} / {len(constraintsB)}     - conflict: {confstr}")
-
+            # Construct leaf nodes for the two solutions
             right = CBS_Node([pathA], parent, constraintA, node.cost + pathA.cost - self.get_cost(node, conflict.agent1), 0, node.total_cons + 1)
             left = CBS_Node([pathB], parent, constraintB, node.cost + pathB.cost - self.get_cost(node, conflict.agent2), 0, node.total_cons + 1)
 
@@ -567,6 +580,7 @@ class CCBS:
             left_ok = True  # ToDo: Why is this needed?
             right_ok = True  # ToDo: Why is this needed?
 
+            # In case of disjoint splitting, add positive constraint to one of the agent's paths
             if self.config.use_disjoint_splitting:
                 agent1_positives = sum(1 for c in constraintsA if c.positive)
                 agent2_positives = sum(1 for c in constraintsB if c.positive)
@@ -598,6 +612,8 @@ class CCBS:
                         constraintsB.append(left.positive_constraint)
                         inserted = True
 
+
+            # Mark the tree nodes
             right.id_str = node.id_str + "0"
             left.id_str = node.id_str + "1"
             right.id = agent_id
@@ -605,6 +621,7 @@ class CCBS:
             left.id = agent_id
             agent_id += 1
 
+            # If pathA exists and satisfies to the given constraints, add it to the tree
             if (right_ok and pathA.cost > 0 and self.validate_constraints(constraintsA, pathA.agentID)):
                 time_now = time.time()
                 low_level_searches, low_level_expanded = self.find_new_conflicts(task, right, paths, pathA, node.conflicts, node.semicard_conflicts, node.cardinal_conflicts, low_level_searches, low_level_expanded)
@@ -616,6 +633,7 @@ class CCBS:
                     right.cost += right.h
                     self.tree.add_node(right)
 
+            # If pathB exists and satisfies to the given constraints, add it to the tree
             if (left_ok and pathB.cost > 0 and self.validate_constraints(constraintsB, pathB.agentID)):
                 time_now = time.time()
                 low_level_searches, low_level_expanded = self.find_new_conflicts(task, left, paths, pathB, node.conflicts, node.semicard_conflicts, node.cardinal_conflicts, low_level_searches, low_level_expanded)
@@ -627,13 +645,14 @@ class CCBS:
                     left.cost += left.h
                     self.tree.add_node(left)
 
-            time_spent = time.time() - start_time
-
-            if False and time_spent > self.config.timelimit:
+            # Timeout handling
+            time_spent = time.time() - start_time            
+            if time_spent > self.config.timelimit:
                 print("Time limit reached, no solution found")
                 self.solution.found = False
                 break
 
+        # Save solution results
         self.solution.paths = self.get_paths(node, len(task.agents))
         self.solution.flowtime = node.cost
         self.solution.low_level_expansions = low_level_searches
